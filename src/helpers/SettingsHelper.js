@@ -8,7 +8,124 @@ const path = require('path');
 const fs = require('fs-extra');
 
 const SettingsHelper = {
-  file: path.join(__dirname, '../data/environments.json'),
+  file: '../data/settings/environments.json',
+  dir: '../data',
+
+  // added documentation methods
+  Docs: {
+    file: '../data/docs/documentations.json',
+    dir: '../data/docs',
+
+    /**
+   * @returns {Promise<[{ name: String, content: String, createdAt: Date, updatedAt: Date }]>}
+   * Returns the contents of the environments file.
+   */
+    read: async () => {
+      const data = await fs.readJSON(SettingsHelper.Docs.file);
+      return data.documentations;
+    },
+
+    /**
+     * @param {String} name
+     * The name of the environment the
+     * documentation belongs to.
+     * @param {String} documentation
+     * The markdown String for the
+     * documentation.
+     */
+    add: async (name, documentation) => {
+      // check for missing values
+      if (!name) {
+        throw new Error('Paramter "name" cannot be empty.');
+      }
+
+      const entries = await SettingsHelper.Docs.read();
+      const found = entries.find((value) => value.name === name);
+
+      if (found) {
+        throw new Error('There is a limitation to one documentation per environment.');
+      }
+
+      // create timestamp
+      const stamp = new Date();
+
+      entries.push({
+        name,
+        documentation,
+        createdAt: stamp,
+        updatedAt: stamp,
+      });
+
+      await fs.writeJSON(SettingsHelper.Docs.file, {
+        documentations: entries,
+      }, {
+        spaces: '\t',
+      });
+    },
+
+    update: async (name, documentation, nameChange = false) => {
+      // check for missing values
+      if (!name) {
+        throw new Error('Paramter "name" cannot be empty.');
+      }
+
+      const entries = await SettingsHelper.Docs.read();
+      const updatedEntries = entries.filter((value) => value.name !== name);
+      const found = entries.find((value) => value.name === name);
+
+      if (updatedEntries.find((value) => value.name === name)) {
+        throw new Error('Paramter "name" has to be unique.');
+      }
+
+      updatedEntries.push({
+        name: nameChange ? documentation : found.name,
+        documentation: nameChange ? found.content : documentation,
+        updatedAt: new Date(),
+        createdAt: found.createdAt,
+      });
+
+      await fs.writeJSON(SettingsHelper.Docs.file, {
+        documentations: updatedEntries,
+      }, {
+        spaces: '\t',
+      });
+    },
+
+    delete: async (name) => {
+      const entries = await SettingsHelper.Docs.read();
+      const updated = entries.filter((value) => value.name !== name);
+      await fs.writeJSON(SettingsHelper.Docs.file, { documentations: updated }, { spaces: '\t' });
+    },
+  },
+
+  /**
+   * @description
+   * Creates the environment.json file
+   * if it's not already present.
+   */
+  init: async () => {
+    const exists = await fs.exists(SettingsHelper.dir);
+    if (!exists) {
+      // create datastore
+      await fs.mkdir(SettingsHelper.dir);
+      await fs.createFile(SettingsHelper.file);
+      await fs.writeJSON(SettingsHelper.file, { environments: [] }, { spaces: '\t' });
+
+      // create docs
+      await fs.mkdir(SettingsHelper.Docs.dir);
+      await fs.createFile(SettingsHelper.Docs.file);
+      await fs.writeJSON(SettingsHelper.Docs.file, { documentations: [] }, { spaces: '\t' });
+
+      // remove modify.json
+      const modifyPath = path.join(SettingsHelper.dir, 'modify.json');
+      const modifyExists = await fs.exists(modifyPath);
+
+      if (modifyExists) {
+        await fs.unlink(modifyPath);
+      }
+    }
+  },
+
   /**
    * @param {String} url
    * The url of the environment
@@ -36,7 +153,11 @@ const SettingsHelper = {
     let entries = await SettingsHelper.read();
 
     // check for duplicates
-    const hasDuplicates = entries.filter((value) => value.url === url || value.name === name).length > 0;
+    const hasDuplicates = entries.filter(
+      (value) => (
+        value.url === url || value.name === name
+      ),
+    ).length > 0;
 
     if (hasDuplicates) {
       throw new Error('Function add expects entries to be unique.');
@@ -48,7 +169,13 @@ const SettingsHelper = {
     }
 
     // add the entry to the dataset
-    const newEntry = { name, url, active };
+    const newEntry = {
+      name,
+      url,
+      active,
+      description: null,
+    };
+
     entries.push(newEntry);
     await fs.writeJSON(SettingsHelper.file, { environments: entries }, { spaces: '\t' });
 
@@ -73,13 +200,20 @@ const SettingsHelper = {
    * The url of the environment
    * @param {String} update.name
    * The name for the environment
+   * @param {String} update.description
+   * The description for the environment
    * @param {Boolean} update.active
    * If the environment is the currently selected
    * @returns {Promise<{ url: String, name: String, active: Boolean }>}
    * Returns the updated entry
    */
   update: async (searchName, update) => {
-    const { name = null, url = null, active = null } = update;
+    const {
+      name = null,
+      url = null,
+      active = null,
+      description = null,
+    } = update;
 
     // validate paramters
     if (!url && !name && active === null) {
@@ -94,13 +228,24 @@ const SettingsHelper = {
     const entries = await SettingsHelper.read();
 
     // check for duplicates
-    const hasDuplicates = entries.filter((value) => value.url === url || value.name === name).length > 0;
+    const hasDuplicates = entries.filter(
+      (value) => (
+        value.url === url || value.name === name
+      ),
+    ).length > 0;
 
     if (hasDuplicates) {
       throw new Error('Function update expects entries to be unique.');
     }
 
-    entries.push({ name, url, active });
+    // add entry
+    entries.push({
+      name,
+      url,
+      active,
+      description,
+    });
+
     await fs.writeJSON(SettingsHelper.file, { environments: entries }, { spaces: '\t' });
 
     return entries;
@@ -118,6 +263,18 @@ const SettingsHelper = {
     }
 
     const entries = await SettingsHelper.read();
+
+    // sort entries
+    entries.sort((x, y) => {
+      if (x === y) {
+        return 0;
+      } if (x) {
+        return -1;
+      }
+
+      return 1;
+    });
+
     const entry = entries.find((value) => value.name === name);
     const updated = entries.filter((value) => value.name !== name);
 
@@ -182,8 +339,21 @@ const SettingsHelper = {
     return entries.length === 0;
   },
 
-  set: async (name) => {
-    const unsetEntries = await SettingsHelper.unset();
+  /**
+   * @param {String} name
+   * The name of the environment
+   * @param {Boolean} unset
+   * Decides if the unset() or read() function is called when executed
+   */
+  set: async (name, unset = true) => {
+    let unsetEntries = null;
+
+    if (unset) {
+      unsetEntries = await SettingsHelper.unset();
+    } else {
+      unsetEntries = await SettingsHelper.read();
+    }
+
     const foundItem = unsetEntries.find((value) => value.name === name);
     foundItem.active = true;
 
@@ -192,6 +362,37 @@ const SettingsHelper = {
 
     await fs.writeJSON(SettingsHelper.file, { environments: setEntries }, { spaces: '\t' });
     return foundItem;
+  },
+
+  /**
+   * @param {String} name
+   * The original name of the environment
+   * @param {{ name: String, url: String, description: String }} edit
+   * The edited environment
+   * @param {String} edit.name
+   * The new name for the environment
+   * @param {String} edit.url
+   * The new url for the environment
+   * @param {String} edit.description
+   * The new url for the environment
+   */
+  edit: async (name, edit) => {
+    const oldEntries = await SettingsHelper.read();
+    const oldItem = oldEntries.find((value) => value.name === name);
+
+    // new edited item
+    const newItem = {
+      name: edit.name,
+      url: edit.url,
+      active: oldItem.active,
+      description: edit.description,
+    };
+
+    await SettingsHelper.delete(name);
+    const newEntries = await SettingsHelper.read();
+    newEntries.push(newItem);
+
+    await fs.writeJSON(SettingsHelper.file, { environments: newEntries }, { spaces: '\t' });
   },
 };
 
