@@ -46,13 +46,19 @@ Add an environment to get started.
 
 ------
 
-Try switching between your environments.
+Try switching between your environments or deleting them.
 
 ![Select env](https://raw.githubusercontent.com/fabio-nettis/headless/master/images/headless-selection.PNG)
 
-Thats it. Your all set! Enjoy headless alpha-1.0.0 with more features to come soon! 😁
+------
+
+Try editing one of your newly created environments and add a description and documentation to it.
+
+![Edit env](https://raw.githubusercontent.com/fabio-nettis/headless/master/images/headless-edit.PNG)
 
 ------
+
+Thats it. Your all set! Enjoy headless alpha-1.0.0 with more features to come soon! 😁
 
 ## Credits
 
