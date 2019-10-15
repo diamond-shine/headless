@@ -6,31 +6,33 @@
   <link rel="stylesheet" href="./css/helper.min.css">
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.blue_grey-teal.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.css">
   <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/simplemde/latest/simplemde.min.js"></script>
 </head>
 
 <body id="body">
-    <header id="titlebar">
-        <div id="drag-region">
-          <div id="window-title">
-            <div class="window-menu-logo">headless<span style="color: #26a69a">.</span></div>
-          </div>
-          <div id="window-controls">
-            <div class="button" id="min-button">
-              <span>&#xE921;</span>
-            </div>
-            <div class="button" id="max-button">
-              <span>&#xE922;</span>
-            </div>
-            <div class="button" id="restore-button">
-              <span>&#xE923;</span>
-            </div>
-            <div class="button" id="close-button">
-              <span>&#xE8BB;</span>
-            </div>
-          </div>
+  <header id="titlebar">
+    <div id="drag-region">
+      <div id="window-title">
+        <div class="window-menu-logo">headless<span style="color: #26a69a">.</span></div>
+      </div>
+      <div id="window-controls">
+        <div class="button" id="min-button">
+          <span>&#xE921;</span>
         </div>
-    </header>
+        <div class="button" id="max-button">
+          <span>&#xE922;</span>
+        </div>
+        <div class="button" id="restore-button">
+          <span>&#xE923;</span>
+        </div>
+        <div class="button" id="close-button">
+          <span>&#xE8BB;</span>
+        </div>
+      </div>
+    </div>
+  </header>
 
   <div id="snackbar" class="mdl-js-snackbar mdl-snackbar">
     <div class="mdl-snackbar__text"></div>
@@ -38,11 +40,16 @@
   </div>
 
   <div class="row full-height">
+
+    <div style="position: absolute; top: 50px; left: 16px; cursor: pointer;" onclick="navigate('environments')">
+      <i class="material-icons">arrow_back</i>
+    </div>
+
     <div class="column full-height center">
       <div style="align-self: center;">
-        <h2 style="width: 100%; font-weight: 700; font-size: 50px;">Say Hi! To Headless.</h2>
+        <h2 style="width: 100%; font-weight: 700; font-size: 50px;">Need a change?</h2>
         <h5 style="width: 100%; padding-top: 0; margin-top: 0">
-          A place for all of your backends.
+          edit your environment right here.
         </h5>
         <div
           style="border-radius: 50px; height: 20px; width: 120px; background-color: #eceff1; align-self: flex-start; margin-top: 24px;">
@@ -55,30 +62,92 @@
 
 
       <div style="padding-right: 32px; padding-top: 24px;">
-        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-          <input class="mdl-textfield__input" type="text" id="connection-name">
-          <label class="mdl-textfield__label" for="connection-name">Enter a name for your enviroment</label>
+        <div style="flex-direction: row; display: flex;">
+          <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+            <input class="mdl-textfield__input" type="text" id="connection-name">
+            <label class="mdl-textfield__label" for="connection-name">Enter a name for this enviroment</label>
+          </div>
+
+          <div style="width: 16px"></div>
+
+          <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+            <input class="mdl-textfield__input" type="text" id="connection-url">
+            <label class="mdl-textfield__label" for="connection-url">Enter an url</label>
+          </div>
         </div>
 
         <div style="height: 16px"></div>
 
-        <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
-          <input class="mdl-textfield__input" type="text" id="connection-url">
-          <label class="mdl-textfield__label" for="connection-url">Enter an url</label>
+        <div style="flex-direction: row; display: flex;">
+          <div class="mdl-textfield mdl-js-textfield">
+            <textarea class="mdl-textfield__input" type="text" id="connection-desc"></textarea>
+            <label class="mdl-textfield__label" for="connection-desc">Add a description</label>
+          </div>
+
+          <div style="width: 16px"></div>
         </div>
 
+
+        <div style="height: 16px"></div>
+        <textarea style="margin-top: 34px;" id="connection-docs"></textarea>
         <div style="height: 16px"></div>
 
-        <button onclick="handleConnectClick();"
+        <button onclick="handleSaveClick();"
           class="connection-button mdl-button mdl-js-button mdl-button--raised mdl-button--colored">
-          Connect
+          Save
         </button>
       </div>
     </div>
   </div>
 
   <script>
+    const fs = require('fs-extra');
+    const path = require('path');
     const remote = require('electron').remote;
+    const { ipcRenderer } = require('electron');
+    const SettingsHelper = require('../helpers/SettingsHelper.js');
+
+    const MarkdownEditor = new SimpleMDE({
+      element: document.getElementById('connection-docs'),
+      hideIcons: ["fullscreen", "side-by-side	"],
+    });
+
+    // data receiver
+    ipcRenderer.on('onEditReceived', async (event, item) => {
+      const {
+        name,
+        url,
+        active,
+        description
+      } = item;
+
+      const documentations = await SettingsHelper.Docs.read();
+      const entry = documentations.find((value) => value.name === name);
+
+      if (entry) {
+        MarkdownEditor.value(entry.documentation);
+      }
+
+      document.getElementById('connection-name').value = name;
+      document.getElementById('connection-name').parentNode.classList.add('is-dirty');
+
+      document.getElementById('connection-url').value = url;
+      document.getElementById('connection-url').parentNode.classList.add('is-dirty');
+
+      if (description) {
+        document.getElementById('connection-desc').value = description;
+        document.getElementById('connection-desc').parentNode.classList.add('is-dirty');
+      }
+    });
+
+    // navigation 
+    const navigate = async (location) => {
+      // destory modify.json
+      const file = path.join(SettingsHelper.dir, 'modify.json');
+      await fs.unlink(file);
+
+      ipcRenderer.send('onNavigation', location);
+    };
 
     (function handleWindowControls() {
       // When document has loaded, initialise
@@ -137,7 +206,7 @@
       }
     })();
 
-    const handleConnectClick = () => {
+    const handleSaveClick = async () => {
       // show dialog if fields are empty
       if (document.getElementById('connection-name').value.length === 0) {
         const snackbarContainer = document.querySelector('#snackbar');
@@ -159,15 +228,26 @@
         return
       }
 
-      const ipc = require('electron').ipcRenderer;
+      let md = '';
+      if (MarkdownEditor.value().length > 0) {
+        md = MarkdownEditor.value();
+      }
 
       // send reload request to the main process
       try {
-        ipc.send('onItemAdded', {
+        const desc = String(document.getElementById('connection-desc').value);
+        
+        const update = {
           name: document.getElementById('connection-name').value,
           url: document.getElementById('connection-url').value,
-          active: true,
-        });
+          description: desc.length > 0
+            ? document.getElementById('connection-desc').value
+            : null,
+        };
+
+        update.documentation = md;
+
+        ipcRenderer.send('onItemWasEdited', update);
       } catch (err) {
         console.log(err)
       }
