@@ -1,0 +1,15 @@
+# Specifies the directory where no
+# javascript is located in .js files
+# and thus eslint should ignore. 
+
+# HTML templates
+./src/pages
+
+# datastore
+./src/data
+
+# build
+./src/dist
+
+# images
+./src/images

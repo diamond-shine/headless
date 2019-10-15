@@ -8,21 +8,34 @@
   "license": "MIT",
   "private": false,
   "build": {
-    "appId": "com.headless.console"
+    "appId": "com.headless.console",
+    "win": {
+      "icon": "./images/headless-logo.png"
+    },
+    "linux": {
+      "icon": "./images/headless-logo.png",
+      "category": "Network"
+    },
+    "mac": {
+      "icon": "./images/headless-logo.png",
+      "category": "public.app-category.productivity",
+      "target": "default"
+    }
   },
   "scripts": {
     "start": "electron ./src/index.js",
+    "lint": "yarn eslint ./src",
     "pack": "electron-builder --dir",
     "dist": "electron-builder"
   },
   "dependencies": {
-    "eslint": "6.1.0",
-    "eslint-config-airbnb-base": "^14.0.0",
-    "eslint-plugin-import": "2.18.2",
     "fs-extra": "^8.1.0"
   },
   "devDependencies": {
+    "electron": "^6.0.12",
     "electron-builder": "^21.2.0",
-    "electron": "^6.0.12"
+    "eslint": "6.1.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-plugin-import": "2.18.2"
   }
 }
