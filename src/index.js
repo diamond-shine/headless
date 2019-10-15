@@ -9,9 +9,10 @@
  * @author Fabio Nettis
  *
  * Created at     : 2019-10-14 07:02:45
- * Last modified  : 2019-10-14 16:48:43
+ * Last modified  : 2019-10-15 16:09:39
  */
 
+const fs = require('fs-extra');
 const path = require('path');
 const {
   BrowserWindow,
@@ -30,6 +31,9 @@ const addFirstEnv = path.join(__dirname, './pages/AddFirstEnv.html');
 
 const Headless = {
   init: async () => {
+    // create the datastore if it doesn't exist yet
+    await SettingsHelper.init();
+
     // create a new BrowserWindow
     const browserWindow = new BrowserWindow({
       frame: false,
@@ -50,10 +54,21 @@ const Headless = {
     }
 
     // ipc callbacks
-    ipcMain.on('onNavigation', (_, location) => {
+    ipcMain.on('onNavigation', async (_, location, name) => {
       switch (location) {
         case 'manage': {
-          browserWindow.loadFile(manageEnv);
+          // get the item that should be editet
+          const entries = await SettingsHelper.read();
+          const item = entries.find((value) => value.name === name);
+
+          // create temporary item store
+          const file = path.join(SettingsHelper.dir, 'modify.json');
+          await fs.createFile(file);
+          await fs.writeJSON(file, { item }, { spaces: '\t' });
+
+          // load file and send data to render process
+          await browserWindow.loadFile(manageEnv);
+          browserWindow.webContents.send('onEditReceived', item);
           break;
         }
 
@@ -81,12 +96,23 @@ const Headless = {
       }
     });
 
-    ipcMain.on('onItemRemoved', async (_, { name }) => {
+    ipcMain.on('onItemRemoved', async (_, name) => {
+      // delete the entry
       await SettingsHelper.delete(name);
+      // check empty state
       const empty = await SettingsHelper.empty();
+      await SettingsHelper.Docs.delete(name);
 
-      if (empty) {
-        browserWindow.loadFile(currentEnv);
+      if (!empty) {
+        // set new active if not empty
+        const entries = await SettingsHelper.read();
+        const filtered = entries.filter((value) => value.active);
+
+        // set new active item if deleted was active
+        if (filtered.length === 0) {
+          await SettingsHelper.set(entries[entries.length - 1].name, false);
+          browserWindow.loadFile(currentEnv);
+        }
       } else {
         browserWindow.loadFile(addFirstEnv);
       }
@@ -99,7 +125,25 @@ const Headless = {
 
     ipcMain.on('onItemAdded', async (_, item) => {
       await SettingsHelper.add(item);
+      await SettingsHelper.Docs.add(item.name, '');
       browserWindow.loadFile(currentEnv);
+    });
+
+    ipcMain.on('onItemWasEdited', async (_, item) => {
+      const file = path.join(SettingsHelper.dir, 'modify.json');
+      const modify = await fs.readJSON(file);
+
+      await SettingsHelper.edit(modify.item.name, item);
+      await fs.unlink(file);
+
+      if (modify.item.name === item.name) {
+        await SettingsHelper.Docs.update(modify.item.name, item.documentation);
+      } else {
+        await SettingsHelper.Docs.update(modify.item.name, item.name, true);
+        await SettingsHelper.Docs.update(item.name, item.documentation);
+      }
+
+      browserWindow.loadFile(envs);
     });
 
     ipcMain.on('onItemUpdated', async (_, { name, item }) => {
