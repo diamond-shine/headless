@@ -10,7 +10,10 @@
 </head>
 
 <body id="body">
-  <!-- Window navigation -->
+  <!--
+    HEADER
+    FIXME: Fix the icons for linux and mac
+  -->
   <header id="titlebar">
     <div id="drag-region">
       <div id="window-title">
@@ -36,73 +39,94 @@
       </div>
     </div>
   </header>
+  <!--HEADER END-->
 
+  <!--CONTENT FRAME-->
   <iframe id="main-frame"></iframe>
+  <!--CONTENT FRAME END-->
 
   <script>
-    const { ipcRenderer } = require('electron');
-    const { getCurrentWindow } = require('electron').remote;
     const SettingsHelper = require('../helpers/SettingsHelper.js');
+    const { ipcRenderer, remote } = require('electron');
+    const { getCurrentWindow } = remote;
 
-    // init main frame
+    /**
+     * Set the <iframe> src attribute to the
+     * focused items url. 
+     */
     (async () => {
-      // set active env
       const active = await SettingsHelper.active();
       document.getElementById('main-frame').src = active.url;
     })();
 
-    // navigation 
+    /**
+     * Called on avigation intent. Sends a signal
+     * to with the ipcRenderer to the main process.
+     */
     const navigate = (location) => {
       ipcRenderer.send('onNavigation', location);
     };
 
-    // init window controls
-    (function handleWindowControls() {
-      // When document has loaded, initialise
+    /**
+     * Handle the window control buttons
+     */
+     (() => {
+      // when document has loaded, initialise
       document.onreadystatechange = () => {
         if (document.readyState == "complete") {
           init();
         }
       };
+      // set the event listeners on the buttons
+      const init = () => {
+        let window = remote.getCurrentWindow();
+        const minButton = document.getElementById('min-button');
+        const maxButton = document.getElementById('max-button');
+        const restoreButton = document.getElementById('restore-button');
+        const closeButton = document.getElementById('close-button');
 
-      function init() {
-        let window = getCurrentWindow();
-        const minButton = document.getElementById('min-button'),
-          maxButton = document.getElementById('max-button'),
-          restoreButton = document.getElementById('restore-button'),
-          closeButton = document.getElementById('close-button');
-
+        /**
+         * Add event listener to minimize button. 
+         */
         minButton.addEventListener("click", event => {
-          window = getCurrentWindow();
+          window = remote.getCurrentWindow();
           window.minimize();
         });
 
+        /**
+         * Add event listener to maximize button. 
+         */
         maxButton.addEventListener("click", event => {
-          window = getCurrentWindow();
+          window = remote.getCurrentWindow();
           window.maximize();
           toggleMaxRestoreButtons();
         });
 
+        /**
+         * Add event listener to unmaximize button. 
+         */
         restoreButton.addEventListener("click", event => {
-          window = getCurrentWindow();
+          window = remote.getCurrentWindow();
           window.unmaximize();
           toggleMaxRestoreButtons();
         });
 
-        // Toggle maximise/restore buttons when maximisation/unmaximisation
-        // occurs by means other than button clicks e.g. double-clicking
-        // the title bar:
+        /**
+         * Toggle maximise/restore buttons when maximisation/unmaximisation
+         * occurs by means other than button clicks e.g. double-clicking
+         * the title bar:
+         */
         toggleMaxRestoreButtons();
         window.on('maximize', toggleMaxRestoreButtons);
         window.on('unmaximize', toggleMaxRestoreButtons);
 
         closeButton.addEventListener("click", event => {
-          window = getCurrentWindow();
+          window = remote.getCurrentWindow();
           window.close();
         });
 
-        function toggleMaxRestoreButtons() {
-          window = getCurrentWindow();
+        const toggleMaxRestoreButtons = () => {
+          window = remote.getCurrentWindow();
           if (window.isMaximized()) {
             maxButton.style.display = "none";
             restoreButton.style.display = "flex";

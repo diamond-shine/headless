@@ -12,6 +12,10 @@
 </head>
 
 <body id="body">
+  <!--
+    HEADER
+    FIXME: Fix the icons for linux and mac
+  -->
   <header id="titlebar">
     <div id="drag-region">
       <div id="window-title">
@@ -33,18 +37,24 @@
       </div>
     </div>
   </header>
+  <!--HEADER END-->
 
+  <!--SNACKBAR-->
   <div id="snackbar" class="mdl-js-snackbar mdl-snackbar">
     <div class="mdl-snackbar__text"></div>
     <button class="mdl-snackbar__action" type="button"></button>
   </div>
+  <!--SNACKBAR END-->
 
+  <!--ROW-->
   <div class="row full-height">
-
+    <!--BACK BUTTON-->
     <div style="position: absolute; top: 50px; left: 16px; cursor: pointer;" onclick="navigate('environments')">
       <i class="material-icons">arrow_back</i>
     </div>
+    <!--BACK BUTTON END-->
 
+    <!--COLUMN-->
     <div class="column full-height center">
       <div style="align-self: center;">
         <h2 style="width: 100%; font-weight: 700; font-size: 50px;">Need a change?</h2>
@@ -56,11 +66,11 @@
         </div>
       </div>
     </div>
+    <!--COLUMN END-->
 
+    <!--COLUMN-->
     <div class="column full-height center"
       style="background-color: #e0f2f1; border-right: 1px solid rgba(0, 0, 0, 0.1);">
-
-
       <div style="padding-right: 32px; padding-top: 24px;">
         <div style="flex-direction: row; display: flex;">
           <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
@@ -98,21 +108,29 @@
         </button>
       </div>
     </div>
+    <!--COLUMN END-->
   </div>
+  <!--ROW END-->
 
   <script>
     const fs = require('fs-extra');
     const path = require('path');
-    const remote = require('electron').remote;
-    const { ipcRenderer } = require('electron');
+    const { ipcRenderer, remote } = require('electron');
     const SettingsHelper = require('../helpers/SettingsHelper.js');
 
+    /**
+     * Create a markdown editor instance
+     * for the textarea.
+     */
     const MarkdownEditor = new SimpleMDE({
       element: document.getElementById('connection-docs'),
       hideIcons: ["fullscreen", "side-by-side	"],
     });
 
-    // data receiver
+    /*
+     * The data receiver is responsible for handling
+     * the signal sent by the main process.
+     */
     ipcRenderer.on('onEditReceived', async (event, item) => {
       const {
         name,
@@ -140,50 +158,122 @@
       }
     });
 
-    // navigation 
+    /**
+     * Called on avigation intent. Sends a signal
+     * to with the ipcRenderer to the main process.
+     * This navigation method is different because
+     * we need to handle the removal of modify.json
+     */
     const navigate = async (location) => {
-      // destory modify.json
       const file = path.join(SettingsHelper.dir, 'modify.json');
       await fs.unlink(file);
 
       ipcRenderer.send('onNavigation', location);
     };
 
-    (function handleWindowControls() {
-      // When document has loaded, initialise
+    const handleSaveClick = async () => {
+      /**
+       * Check for empty state of required filed
+       * "name" and show the snackbar if needed.  
+       */
+      if (document.getElementById('connection-name').value.length === 0) {
+        const snackbarContainer = document.querySelector('#snackbar');
+        var data = {
+          message: 'Please enter a name for your environment.',
+          timeout: 2000,
+        };
+        snackbarContainer.MaterialSnackbar.showSnackbar(data);
+        return
+      }
+
+      /**
+       * Check for empty state of required filed
+       * "url" and show the snackbar if needed.  
+       */
+      if (document.getElementById('connection-url').value.length === 0) {
+        const snackbarContainer = document.querySelector('#snackbar');
+        var data = {
+          message: 'Please enter an url for your environment.',
+          timeout: 2000,
+        };
+        snackbarContainer.MaterialSnackbar.showSnackbar(data);
+        return
+      }
+
+      /**
+       * Set the value of the documentation if
+       * it is present.
+       */
+      let md = '';
+      if (MarkdownEditor.value().length > 0) {
+        md = MarkdownEditor.value();
+      }
+
+      // send reload request to the main process
+      const desc = String(document.getElementById('connection-desc').value);
+
+      const update = {
+        name: document.getElementById('connection-name').value,
+        url: document.getElementById('connection-url').value,
+        description: desc.length > 0
+          ? document.getElementById('connection-desc').value
+          : null,
+      };
+
+      update.documentation = md;
+
+      ipcRenderer.send('onItemWasEdited', update);
+    }
+
+    /**
+     * Handle the window control buttons
+     */
+     (() => {
+      // when document has loaded, initialise
       document.onreadystatechange = () => {
         if (document.readyState == "complete") {
           init();
         }
       };
-
-      function init() {
+      // set the event listeners on the buttons
+      const init = () => {
         let window = remote.getCurrentWindow();
-        const minButton = document.getElementById('min-button'),
-          maxButton = document.getElementById('max-button'),
-          restoreButton = document.getElementById('restore-button'),
-          closeButton = document.getElementById('close-button');
+        const minButton = document.getElementById('min-button');
+        const maxButton = document.getElementById('max-button');
+        const restoreButton = document.getElementById('restore-button');
+        const closeButton = document.getElementById('close-button');
 
+        /**
+         * Add event listener to minimize button. 
+         */
         minButton.addEventListener("click", event => {
           window = remote.getCurrentWindow();
           window.minimize();
         });
 
+        /**
+         * Add event listener to maximize button. 
+         */
         maxButton.addEventListener("click", event => {
           window = remote.getCurrentWindow();
           window.maximize();
           toggleMaxRestoreButtons();
         });
 
+        /**
+         * Add event listener to unmaximize button. 
+         */
         restoreButton.addEventListener("click", event => {
           window = remote.getCurrentWindow();
           window.unmaximize();
           toggleMaxRestoreButtons();
         });
 
-        // Toggle maximise/restore buttons when maximisation/unmaximisation
-        // occurs by means other than button clicks e.g. double-clicking
-        // the title bar:
+        /**
+         * Toggle maximise/restore buttons when maximisation/unmaximisation
+         * occurs by means other than button clicks e.g. double-clicking
+         * the title bar:
+         */
         toggleMaxRestoreButtons();
         window.on('maximize', toggleMaxRestoreButtons);
         window.on('unmaximize', toggleMaxRestoreButtons);
@@ -193,7 +283,7 @@
           window.close();
         });
 
-        function toggleMaxRestoreButtons() {
+        const toggleMaxRestoreButtons = () => {
           window = remote.getCurrentWindow();
           if (window.isMaximized()) {
             maxButton.style.display = "none";
@@ -205,53 +295,6 @@
         }
       }
     })();
-
-    const handleSaveClick = async () => {
-      // show dialog if fields are empty
-      if (document.getElementById('connection-name').value.length === 0) {
-        const snackbarContainer = document.querySelector('#snackbar');
-        var data = {
-          message: 'Please enter a name for your environment.',
-          timeout: 2000,
-        };
-        snackbarContainer.MaterialSnackbar.showSnackbar(data);
-        return
-      }
-
-      if (document.getElementById('connection-url').value.length === 0) {
-        const snackbarContainer = document.querySelector('#snackbar');
-        var data = {
-          message: 'Please enter an url for your environment.',
-          timeout: 2000,
-        };
-        snackbarContainer.MaterialSnackbar.showSnackbar(data);
-        return
-      }
-
-      let md = '';
-      if (MarkdownEditor.value().length > 0) {
-        md = MarkdownEditor.value();
-      }
-
-      // send reload request to the main process
-      try {
-        const desc = String(document.getElementById('connection-desc').value);
-        
-        const update = {
-          name: document.getElementById('connection-name').value,
-          url: document.getElementById('connection-url').value,
-          description: desc.length > 0
-            ? document.getElementById('connection-desc').value
-            : null,
-        };
-
-        update.documentation = md;
-
-        ipcRenderer.send('onItemWasEdited', update);
-      } catch (err) {
-        console.log(err)
-      }
-    }
   </script>
 </body>
 
