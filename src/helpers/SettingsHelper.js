@@ -8,13 +8,13 @@ const path = require('path');
 const fs = require('fs-extra');
 
 const SettingsHelper = {
-  file: '../data/settings/environments.json',
-  dir: '../data',
+  file: './src/data/settings/environments.json',
+  dir: './src/data',
 
   // added documentation methods
   Docs: {
-    file: '../data/docs/documentations.json',
-    dir: '../data/docs',
+    file: './src/data/docs/documentations.json',
+    dir: './src/data/docs',
 
     /**
    * @returns {Promise<[{ name: String, content: String, createdAt: Date, updatedAt: Date }]>}
