@@ -9,7 +9,7 @@
  * @author Fabio Nettis
  *
  * Created at     : 2019-10-14 07:02:45
- * Last modified  : 2019-10-16 07:15:01
+ * Last modified  : 2019-10-16 07:19:25
  */
 
 const fs = require('fs-extra');
@@ -19,7 +19,7 @@ const electron = require('electron');
 const { app } = electron;
 const { shell } = electron;
 
-const { ipcMain } = electron
+const { ipcMain } = electron;
 const { BrowserWindow } = electron;
 const SettingsHelper = require('./helpers/SettingsHelper');
 
