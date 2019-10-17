@@ -89,7 +89,8 @@
   <!--ROW END-->
 
   <script>
-    const { ipcRenderer, remote } = require('electron');
+    const { ipcRenderer } = require('electron');
+    const { getCurrentWindow } = require('electron').remote;
     /**
      * Called on avigation intent. Sends a signal
      * to with the ipcRenderer to the main process.
