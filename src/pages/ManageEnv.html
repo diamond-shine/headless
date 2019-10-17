@@ -228,7 +228,7 @@
     /**
      * Handle the window control buttons
      */
-     (() => {
+    (() => {
       // when document has loaded, initialise
       document.onreadystatechange = () => {
         if (document.readyState == "complete") {
@@ -237,17 +237,27 @@
       };
       // set the event listeners on the buttons
       const init = () => {
-        let window = remote.getCurrentWindow();
+        let window = getCurrentWindow();
         const minButton = document.getElementById('min-button');
         const maxButton = document.getElementById('max-button');
         const restoreButton = document.getElementById('restore-button');
         const closeButton = document.getElementById('close-button');
+        const toggleMaxRestoreButtons = () => {
+          window = getCurrentWindow();
+          if (window.isMaximized()) {
+            maxButton.style.display = "none";
+            restoreButton.style.display = "flex";
+          } else {
+            restoreButton.style.display = "none";
+            maxButton.style.display = "flex";
+          }
+        };
 
         /**
          * Add event listener to minimize button. 
          */
         minButton.addEventListener("click", event => {
-          window = remote.getCurrentWindow();
+          window = getCurrentWindow();
           window.minimize();
         });
 
@@ -255,7 +265,7 @@
          * Add event listener to maximize button. 
          */
         maxButton.addEventListener("click", event => {
-          window = remote.getCurrentWindow();
+          window = getCurrentWindow();
           window.maximize();
           toggleMaxRestoreButtons();
         });
@@ -264,7 +274,7 @@
          * Add event listener to unmaximize button. 
          */
         restoreButton.addEventListener("click", event => {
-          window = remote.getCurrentWindow();
+          window = getCurrentWindow();
           window.unmaximize();
           toggleMaxRestoreButtons();
         });
@@ -279,20 +289,9 @@
         window.on('unmaximize', toggleMaxRestoreButtons);
 
         closeButton.addEventListener("click", event => {
-          window = remote.getCurrentWindow();
+          window = getCurrentWindow();
           window.close();
         });
-
-        const toggleMaxRestoreButtons = () => {
-          window = remote.getCurrentWindow();
-          if (window.isMaximized()) {
-            maxButton.style.display = "none";
-            restoreButton.style.display = "flex";
-          } else {
-            restoreButton.style.display = "none";
-            maxButton.style.display = "flex";
-          }
-        }
       }
     })();
   </script>
